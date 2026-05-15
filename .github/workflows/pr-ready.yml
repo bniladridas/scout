@@ -88,6 +88,18 @@ jobs:
             fi
           }
 
+          sw_vers_value() {
+            printf "%s" "$MACOS" | awk -F: -v key="$1" '$1 == key { gsub(/^[ \t]+|[ \t]+$/, "", $2); print $2 }'
+          }
+
+          macos_version="$(sw_vers_value ProductVersion)"
+          macos_build="$(sw_vers_value BuildVersion)"
+          if [ -n "$macos_version" ] && [ -n "$macos_build" ]; then
+            runner_macos="$macos_version ($macos_build)"
+          else
+            runner_macos="$(printf "%s" "$MACOS" | tr '\n' ' ')"
+          fi
+
           ready="true"
           if [ "$BUILD_RESULT" != "success" ] || [ "$PACKAGE_RESULT" != "success" ] || [ "$VERIFY_RESULT" != "success" ]; then
             ready="false"
@@ -118,7 +130,7 @@ jobs:
             echo
             echo "**Runner:** macos-latest"
             echo
-            echo "**macOS:** $(printf "%s" "$MACOS" | tr '\n' ' ')"
+            echo "**Runner macOS:** $runner_macos"
             echo
             echo "**Xcode:** $(printf "%s" "$XCODE" | tr '\n' ' ')"
             echo

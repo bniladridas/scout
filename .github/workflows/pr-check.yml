@@ -124,7 +124,7 @@ jobs:
             echo "| --- | --- |"
             echo "| App version | ${{ steps.version.outputs.value }} |"
             echo "| Runner | macos-latest |"
-            echo "| macOS | $(sw_vers -productVersion) ($(sw_vers -buildVersion)) |"
+            echo "| Runner macOS | $(sw_vers -productVersion) ($(sw_vers -buildVersion)) |"
             echo "| Xcode | $(xcodebuild -version | tr '\n' ' ') |"
             echo "| Swift | $(swift --version | head -n 1) |"
             echo "| Build | ${{ steps.build.outcome }} |"
