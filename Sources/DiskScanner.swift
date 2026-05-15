@@ -75,6 +75,12 @@ final class DiskScanner: ObservableObject {
     func removeCandidate(id: CleanupCandidate.ID) {
         candidates.removeAll { $0.id == id }
     }
+
+    func removeCandidates(atOrInside path: String) {
+        candidates.removeAll { candidate in
+            candidate.path == path || candidate.path.hasPrefix(path + "/")
+        }
+    }
 }
 
 enum ScanUpdate {

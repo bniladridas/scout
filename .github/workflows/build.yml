@@ -79,3 +79,4 @@ jobs:
           GITHUB_TOKEN: ${{ steps.scout-token.outputs.token }}
         with:
           files: Scout.dmg
+          body_path: Support/ReleaseNotes.md

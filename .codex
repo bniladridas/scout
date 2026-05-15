@@ -1,0 +1,22 @@
+release bump notes
+
+- do version bump work on a version-named branch, usually `release/<version>`
+- bump both `VERSION` and `Support/Info.plist`
+- keep `CFBundleShortVersionString` and `CFBundleVersion` aligned with `VERSION`
+- update `Support/ReleaseNotes.md` with a short plain release note for the new version
+- release publishing reads notes from `Support/ReleaseNotes.md` via `.github/workflows/build.yml`
+- after a bump, run `swift build`
+- generated local artifacts such as `Scout.dmg` and `.build/Scout.app` can be stale until `scripts/package-dmg.sh` or `scripts/package-app.sh` is run
+
+workflow notes
+
+- `pr-ready.yml` is triggered by `workflow_run`, so GitHub uses the workflow from `main`
+- PR changes to `pr-ready.yml` affect readiness comments only after merge
+- readiness comments should say `Runner macOS` for GitHub runner OS values
+
+PR writing notes
+
+- PR titles should be simple and truthful
+- PR bodies should be short, plain, and accurate
+- avoid heavy wording, filler, and section headers unless they add real clarity
+- use backticks for filenames, commands, labels, and code identifiers
