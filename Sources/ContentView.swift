@@ -38,14 +38,12 @@ struct ContentView: View {
 
             Divider()
 
-            HStack(spacing: 0) {
+            HSplitView {
                 table
                     .frame(minWidth: 820, maxWidth: .infinity)
-
-                Divider()
                 
                 detail
-                    .frame(width: 380)
+                    .frame(minWidth: 300, idealWidth: 380, maxWidth: 560)
             }
         }
         .onAppear {
@@ -92,6 +90,12 @@ struct ContentView: View {
 
             Spacer()
 
+            if scanner.isScanning {
+                ProgressView()
+                    .controlSize(.small)
+                    .frame(width: 18, height: 18)
+            }
+
             Picker("Safety", selection: $safetyFilter) {
                 Text("All \(scanner.candidates.count)").tag(Optional<CleanupSafety>.none)
                 Text("Safe \(safeCount)").tag(Optional(CleanupSafety.safe))
@@ -130,18 +134,22 @@ struct ContentView: View {
         VStack(spacing: 0) {
             ResultHeader()
 
-            List(filteredCandidates, selection: $selectedCandidateID) { candidate in
-                ResultRow(
-                    candidate: candidate,
-                    isSelected: selectedCandidateID == candidate.id
-                )
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    selectedCandidateID = candidate.id
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    ForEach(filteredCandidates) { candidate in
+                        ResultRow(
+                            candidate: candidate,
+                            isSelected: selectedCandidateID == candidate.id
+                        )
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            selectedCandidateID = candidate.id
+                        }
+                        .padding(.horizontal, 2)
+                    }
                 }
-                .tag(candidate.id)
+                .padding(.vertical, 2)
             }
-            .listStyle(.plain)
         }
         .overlay {
             if scanner.candidates.isEmpty {
@@ -227,7 +235,7 @@ struct ContentView: View {
     private func moveToTrash(_ candidate: CleanupCandidate) {
         guard FileManager.default.fileExists(atPath: candidate.path) else {
             deleteCandidate = nil
-            deleteError = "The item no longer exists at this path."
+            removeCandidateAndDescendants(candidate)
             return
         }
 
@@ -243,11 +251,20 @@ struct ContentView: View {
                     return
                 }
 
-                scanner.removeCandidate(id: candidate.id)
-                if selectedCandidateID == candidate.id {
-                    selectedCandidateID = nil
-                }
+                removeCandidateAndDescendants(candidate)
             }
+        }
+    }
+
+    private func removeCandidateAndDescendants(_ candidate: CleanupCandidate) {
+        let removedSelectedCandidate = selectedCandidate.map {
+            $0.path == candidate.path || $0.path.hasPrefix(candidate.path + "/")
+        } ?? false
+
+        scanner.removeCandidates(atOrInside: candidate.path)
+
+        if removedSelectedCandidate {
+            selectedCandidateID = nil
         }
     }
 }
