@@ -8,6 +8,7 @@ struct ContentView: View {
     @State private var deleteCandidate: CleanupCandidate?
     @State private var deleteError: String?
     @State private var isMovingToTrash = false
+    private let systemInfo = SystemInfo.current
 
     private var filteredCandidates: [CleanupCandidate] {
         guard let safetyFilter else { return scanner.candidates }
@@ -79,6 +80,10 @@ struct ContentView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Scout")
                     .font(.headline)
+                Text(systemInfo.displayName)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
                 Text(scanner.status)
                     .font(.caption)
                     .foregroundStyle(.secondary)
