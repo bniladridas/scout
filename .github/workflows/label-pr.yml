@@ -38,11 +38,11 @@ jobs:
             color="$2"
             description="$3"
 
-            if gh label view "$name" --repo "$REPO" >/dev/null 2>&1; then
-              gh label edit "$name" --repo "$REPO" --color "$color" --description "$description"
-            else
-              gh label create "$name" --repo "$REPO" --color "$color" --description "$description"
-            fi
+            gh label create "$name" \
+              --repo "$REPO" \
+              --color "$color" \
+              --description "$description" \
+              --force
           }
 
           sync_label "area: app" "16C28C" "Changes to the Scout macOS app shell or Swift package."
