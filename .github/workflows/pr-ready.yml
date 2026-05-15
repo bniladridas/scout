@@ -1,0 +1,152 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+---
+name: PR Ready
+
+on:
+  workflow_run:
+    workflows:
+      - PR Check
+    types:
+      - completed
+
+permissions:
+  actions: read
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  comment:
+    name: Comment
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download PR Check Summary
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("fs");
+            const { owner, repo } = context.repo;
+            const run_id = context.payload.workflow_run.id;
+
+            const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
+              owner,
+              repo,
+              run_id
+            });
+
+            const artifact = artifacts.data.artifacts.find((item) => item.name === "pr-ready");
+            if (!artifact) {
+              core.setFailed("Missing pr-ready artifact");
+              return;
+            }
+
+            const download = await github.rest.actions.downloadArtifact({
+              owner,
+              repo,
+              artifact_id: artifact.id,
+              archive_format: "zip"
+            });
+
+            fs.mkdirSync("pr-ready", { recursive: true });
+            fs.writeFileSync("pr-ready.zip", Buffer.from(download.data));
+
+      - name: Extract Summary
+        run: unzip -o pr-ready.zip -d pr-ready
+
+      - name: Create Scout App Token
+        id: scout-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.SCOUT_APP_ID }}
+          private-key: ${{ secrets.SCOUT_APP_PRIVATE_KEY }}
+          permission-issues: write
+          permission-pull-requests: write
+          permission-contents: read
+
+      - name: Comment Readiness
+        env:
+          GH_TOKEN: ${{ steps.scout-token.outputs.token }}
+          REPO: ${{ github.repository }}
+          ICON_URL: https://raw.githubusercontent.com/${{ github.repository }}/main/Assets/Icons/readme-icon.png
+        run: |
+          set -euo pipefail
+
+          source pr-ready/summary.env
+          VERSION="$(printf "%s" "$VERSION_B64" | base64 -d)"
+          COMMIT_AUTHOR="$(printf "%s" "$COMMIT_AUTHOR_B64" | base64 -d)"
+          COMMIT_SUBJECT="$(printf "%s" "$COMMIT_SUBJECT_B64" | base64 -d)"
+          MACOS="$(printf "%s" "$MACOS_B64" | base64 -d)"
+          XCODE="$(printf "%s" "$XCODE_B64" | base64 -d)"
+          SWIFT="$(printf "%s" "$SWIFT_B64" | base64 -d)"
+
+          icon_for() {
+            if [ "$1" = "success" ]; then
+              printf "passed"
+            else
+              printf "failed"
+            fi
+          }
+
+          ready="true"
+          if [ "$BUILD_RESULT" != "success" ] || [ "$PACKAGE_RESULT" != "success" ] || [ "$VERIFY_RESULT" != "success" ]; then
+            ready="false"
+          fi
+
+          if [ "$ready" = "true" ]; then
+            title="Ready for merge"
+            summary="Scout checked this pull request and the required checks passed. Version $VERSION builds, packages, and verifies on macOS."
+          else
+            title="Not ready for merge"
+            summary="Scout checked this pull request and found a failing step. Review the run before merging."
+          fi
+
+          body="$(mktemp)"
+          {
+            echo "<!-- scout-pr-ready -->"
+            echo "<p><img src=\"$ICON_URL\" width=\"40\" height=\"40\" alt=\"Scout\"></p>"
+            echo
+            echo "## $title"
+            echo
+            echo "$summary"
+            echo
+            echo "This result is for \`$COMMIT_SHA\`, **$COMMIT_SUBJECT**, by $COMMIT_AUTHOR."
+            echo
+            echo "---"
+            echo
+            echo "**Run:** [View checks]($RUN_URL)"
+            echo
+            echo "**Runner:** macos-latest"
+            echo
+            echo "**macOS:** $(printf "%s" "$MACOS" | tr '\n' ' ')"
+            echo
+            echo "**Xcode:** $(printf "%s" "$XCODE" | tr '\n' ' ')"
+            echo
+            echo "**Swift:** $(printf "%s" "$SWIFT" | head -n 1)"
+            echo
+            echo "Results:"
+            echo
+            echo "| Check | Result |"
+            echo "| --- | --- |"
+            echo "| Build | $(icon_for "$BUILD_RESULT") |"
+            echo "| Package DMG | $(icon_for "$PACKAGE_RESULT") |"
+            echo "| Verify DMG | $(icon_for "$VERIFY_RESULT") |"
+          } > "$body"
+
+          existing_id="$(
+            gh api "repos/$REPO/issues/$PR_NUMBER/comments" \
+              --jq '.[] | select(.body | contains("<!-- scout-pr-ready -->")) | .id' \
+              | tail -n 1
+          )"
+
+          if [ -n "$existing_id" ]; then
+            gh api "repos/$REPO/issues/comments/$existing_id" \
+              -X PATCH \
+              -f body="$(cat "$body")" \
+              --silent
+          else
+            gh api "repos/$REPO/issues/$PR_NUMBER/comments" \
+              -X POST \
+              -f body="$(cat "$body")" \
+              --silent
+          fi

@@ -1,0 +1,137 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+---
+name: PR Check
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Build and Package
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Read Version
+        id: version
+        run: echo "value=$(tr -d '[:space:]' < VERSION)" >> "$GITHUB_OUTPUT"
+
+      - name: Read Environment
+        id: environment
+        run: |
+          {
+            echo "macos<<EOF"
+            sw_vers
+            echo "EOF"
+            echo "xcode<<EOF"
+            xcodebuild -version
+            echo "EOF"
+            echo "swift<<EOF"
+            swift --version
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build
+        id: build
+        continue-on-error: true
+        run: swift build
+
+      - name: Package DMG
+        id: package
+        continue-on-error: true
+        run: scripts/package-dmg.sh
+
+      - name: Verify DMG
+        id: verify
+        continue-on-error: true
+        run: hdiutil verify Scout.dmg
+
+      - name: Read Commit
+        id: commit
+        if: always()
+        run: |
+          {
+            echo "sha=$(git rev-parse --short=12 HEAD)"
+            echo "author=$(git log -1 --format=%an)"
+            echo "subject<<EOF"
+            git log -1 --format=%s
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Write Summary Artifact
+        if: always()
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BUILD_RESULT: ${{ steps.build.outcome }}
+          PACKAGE_RESULT: ${{ steps.package.outcome }}
+          VERIFY_RESULT: ${{ steps.verify.outcome }}
+          VERSION: ${{ steps.version.outputs.value }}
+          COMMIT_SHA: ${{ steps.commit.outputs.sha }}
+          COMMIT_AUTHOR: ${{ steps.commit.outputs.author }}
+          COMMIT_SUBJECT: ${{ steps.commit.outputs.subject }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p pr-ready
+          version_b64="$(printf "%s" "$VERSION" | base64 | tr -d '\n')"
+          commit_subject_b64="$(printf "%s" "$COMMIT_SUBJECT" | base64 | tr -d '\n')"
+          macos_b64="$(sw_vers | base64 | tr -d '\n')"
+          xcode_b64="$(xcodebuild -version | base64 | tr -d '\n')"
+          swift_b64="$(swift --version | base64 | tr -d '\n')"
+
+          {
+            printf "PR_NUMBER=%s\n" "$PR_NUMBER"
+            printf "BUILD_RESULT=%s\n" "$BUILD_RESULT"
+            printf "PACKAGE_RESULT=%s\n" "$PACKAGE_RESULT"
+            printf "VERIFY_RESULT=%s\n" "$VERIFY_RESULT"
+            printf "VERSION_B64=%s\n" "$version_b64"
+            printf "COMMIT_SHA=%s\n" "$COMMIT_SHA"
+            printf "COMMIT_AUTHOR_B64=%s\n" "$(printf "%s" "$COMMIT_AUTHOR" | base64 | tr -d '\n')"
+            printf "COMMIT_SUBJECT_B64=%s\n" "$commit_subject_b64"
+            printf "RUN_URL=%s\n" "$RUN_URL"
+            printf "MACOS_B64=%s\n" "$macos_b64"
+            printf "XCODE_B64=%s\n" "$xcode_b64"
+            printf "SWIFT_B64=%s\n" "$swift_b64"
+          } > pr-ready/summary.env
+
+      - name: Upload Summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-ready
+          path: pr-ready/summary.env
+
+      - name: Write Workflow Summary
+        if: always()
+        run: |
+          {
+            echo "## Scout PR Check"
+            echo
+            echo "| Item | Value |"
+            echo "| --- | --- |"
+            echo "| App version | ${{ steps.version.outputs.value }} |"
+            echo "| Runner | macos-latest |"
+            echo "| macOS | $(sw_vers -productVersion) ($(sw_vers -buildVersion)) |"
+            echo "| Xcode | $(xcodebuild -version | tr '\n' ' ') |"
+            echo "| Swift | $(swift --version | head -n 1) |"
+            echo "| Build | ${{ steps.build.outcome }} |"
+            echo "| Package DMG | ${{ steps.package.outcome }} |"
+            echo "| Verify DMG | ${{ steps.verify.outcome }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail If Not Ready
+        if: steps.build.outcome != 'success' || steps.package.outcome != 'success' || steps.verify.outcome != 'success'
+        run: exit 1

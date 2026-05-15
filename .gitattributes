@@ -1,0 +1,13 @@
+* text=auto eol=lf
+
+*.png binary
+*.icns binary
+*.dmg binary
+
+*.sh text eol=lf
+*.swift text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.html text eol=lf
+*.md text eol=lf
+*.plist text eol=lf

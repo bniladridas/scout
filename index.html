@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Scout</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #000000;
+      --surface: #090b0a;
+      --text: #f3f7f5;
+      --muted: #8d9994;
+      --line: #18221e;
+      --accent: #16c28c;
+      --accent-soft: rgba(22, 194, 140, 0.12);
+      --code: #101412;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.55;
+    }
+
+    main {
+      width: min(680px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 88px 0;
+    }
+
+    header {
+      margin-bottom: 44px;
+    }
+
+    .mark {
+      width: 78px;
+      height: 78px;
+      display: block;
+      margin-bottom: 30px;
+    }
+
+    h1 {
+      margin: 0 0 14px;
+      font-size: 72px;
+      font-weight: 760;
+      line-height: 0.98;
+      letter-spacing: 0;
+    }
+
+    p {
+      margin: 0;
+      max-width: 560px;
+      color: var(--muted);
+      font-size: 19px;
+    }
+
+    .download {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 48px;
+      margin-top: 30px;
+      padding: 0 18px;
+      border: 1px solid rgba(22, 194, 140, 0.42);
+      border-radius: 8px;
+      background: var(--accent);
+      color: #00110b;
+      font-weight: 750;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .version {
+      display: block;
+      margin-top: 20px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    section {
+      padding: 28px 0;
+      border-top: 1px solid var(--line);
+    }
+
+    h2 {
+      margin: 0 0 10px;
+      font-size: 17px;
+      font-weight: 720;
+      letter-spacing: 0;
+    }
+
+    .quiet {
+      font-size: 16px;
+    }
+
+    .facts {
+      display: grid;
+      gap: 14px;
+    }
+
+    .fact {
+      padding-left: 16px;
+      border-left: 2px solid var(--accent);
+      color: var(--muted);
+      font-size: 17px;
+    }
+
+    pre {
+      margin: 14px 0 0;
+      padding: 16px;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--code);
+    }
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.94em;
+      color: var(--text);
+    }
+
+    footer {
+      padding-top: 28px;
+      border-top: 1px solid var(--line);
+    }
+
+    @media (max-width: 560px) {
+      main {
+        width: min(100% - 32px, 680px);
+        padding: 64px 0;
+      }
+
+      .mark {
+        width: 66px;
+        height: 66px;
+        margin-bottom: 26px;
+      }
+
+      header {
+        margin-bottom: 38px;
+      }
+
+      h1 {
+        font-size: 52px;
+      }
+
+      p {
+        font-size: 17px;
+      }
+
+      .download {
+        width: 100%;
+        margin-top: 28px;
+      }
+
+      .version {
+        text-align: center;
+      }
+
+      section {
+        padding: 26px 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <img class="mark" src="Assets/Icons/app-icon.png" alt="">
+      <h1>Scout</h1>
+      <p>Find heavy files, caches, build artifacts, models, and toolchains. Move only what you choose to Trash.</p>
+      <a class="download" id="download-link" href="Scout.dmg">Download DMG</a>
+      <span class="version" id="version">Version</span>
+    </header>
+
+    <section>
+      <h2>Install</h2>
+      <p class="quiet">Open the DMG, drag Scout to Applications, then launch it from Applications.</p>
+    </section>
+
+    <section>
+      <h2>What it does</h2>
+      <div class="facts">
+        <div class="fact">Scans your home folder or any folder you choose.</div>
+        <div class="fact">Labels each item before you act.</div>
+        <div class="fact">Uses macOS Trash. No permanent delete.</div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Build</h2>
+      <p class="quiet">With Xcode command line tools installed:</p>
+      <pre><code>scripts/package-dmg.sh</code></pre>
+    </section>
+
+    <footer>
+      <p class="quiet">Scout is local and has no network feature. It is not Apple-notarized, so macOS may warn before opening it.</p>
+    </footer>
+  </main>
+  <script>
+    const link = document.getElementById("download-link");
+    const host = window.location.hostname;
+    const parts = window.location.pathname.split("/").filter(Boolean);
+
+    if (host.endsWith("github.io") && parts.length > 0) {
+      const owner = host.replace(".github.io", "");
+      const repo = parts[0];
+      link.href = `https://github.com/${owner}/${repo}/releases/latest/download/Scout.dmg`;
+    }
+
+    fetch("VERSION", { cache: "no-store" })
+      .then((response) => response.ok ? response.text() : "")
+      .then((version) => {
+        const value = version.trim();
+        if (value) {
+          document.getElementById("version").textContent = `Version ${value}`;
+        }
+      })
+      .catch(() => {});
+  </script>
+</body>
+</html>

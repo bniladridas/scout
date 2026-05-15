@@ -1,0 +1,81 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+---
+name: Build Scout
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build DMG
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build
+        run: swift build
+
+      - name: Package DMG
+        run: scripts/package-dmg.sh
+
+      - name: Verify DMG
+        run: hdiutil verify Scout.dmg
+
+      - name: Write Build Summary
+        run: |
+          {
+            echo "## Scout macOS Artifact"
+            echo
+            echo "| Item | Value |"
+            echo "| --- | --- |"
+            echo "| App version | $(tr -d '[:space:]' < VERSION) |"
+            echo "| Runner | macos-latest |"
+            echo "| macOS | $(sw_vers -productVersion) ($(sw_vers -buildVersion)) |"
+            echo "| Xcode | $(xcodebuild -version | tr '\n' ' ') |"
+            echo "| Swift | $(swift --version | head -n 1) |"
+            echo "| Artifact | Scout.dmg |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify Release Tag
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          version="$(tr -d '[:space:]' < VERSION)"
+          tag="${GITHUB_REF_NAME#v}"
+
+          if [ "$tag" != "$version" ]; then
+            echo "Tag v$tag does not match VERSION $version"
+            exit 1
+          fi
+
+      - name: Create Scout App Token
+        id: scout-token
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.SCOUT_APP_ID }}
+          private-key: ${{ secrets.SCOUT_APP_PRIVATE_KEY }}
+
+      - name: Upload DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: Scout.dmg
+          path: Scout.dmg
+
+      - name: Publish Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ steps.scout-token.outputs.token }}
+        with:
+          files: Scout.dmg

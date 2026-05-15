@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+---
+name: Close Inactive
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  stale:
+    name: Close Inactive Issues and PRs
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Create Scout App Token
+        id: scout-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.SCOUT_APP_ID }}
+          private-key: ${{ secrets.SCOUT_APP_PRIVATE_KEY }}
+
+      - name: Close Inactive
+        uses: actions/stale@v9
+        with:
+          repo-token: ${{ steps.scout-token.outputs.token }}
+          days-before-stale: 7
+          days-before-close: 0
+          operations-per-run: 100
+          remove-stale-when-updated: true
+          exempt-draft-pr: true
+          exempt-all-milestones: true
+          stale-issue-label: "status: inactive"
+          stale-pr-label: "status: inactive"
+          close-issue-label: "status: closed inactive"
+          close-pr-label: "status: closed inactive"
+          stale-issue-message: "Closing soon for inactivity. Comment to keep it open."
+          stale-pr-message: "Closing soon for inactivity. Push or comment to keep it open."
+          close-issue-message: "Closed for inactivity."
+          close-pr-message: "Closed for inactivity."

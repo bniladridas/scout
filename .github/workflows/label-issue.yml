@@ -1,0 +1,112 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+---
+name: Label Issue
+
+on:
+  issues:
+    types:
+      - opened
+      - edited
+      - reopened
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  label:
+    name: Label Issue
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Create Scout App Token
+        id: scout-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.SCOUT_APP_ID }}
+          private-key: ${{ secrets.SCOUT_APP_PRIVATE_KEY }}
+
+      - name: Sync Labels
+        env:
+          GH_TOKEN: ${{ steps.scout-token.outputs.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          sync_label() {
+            name="$1"
+            color="$2"
+            description="$3"
+
+            if gh label view "$name" --repo "$REPO" >/dev/null 2>&1; then
+              gh label edit "$name" --repo "$REPO" --color "$color" --description "$description"
+            else
+              gh label create "$name" --repo "$REPO" --color "$color" --description "$description"
+            fi
+          }
+
+          sync_label "area: app" "16C28C" "Changes to the Scout macOS app shell or Swift package."
+          sync_label "area: scanner" "0EA5E9" "Changes to heavy-item scanning, classification, or cleanup logic."
+          sync_label "area: packaging" "8B5CF6" "Changes to app bundling, icon generation, signing, or DMG packaging."
+          sync_label "area: website" "22C55E" "Changes to the static install webpage."
+          sync_label "area: assets" "F59E0B" "Changes to icons, images, or visual assets."
+          sync_label "area: docs" "64748B" "Changes to README or product-facing documentation."
+          sync_label "area: ci" "334155" "Changes to GitHub Actions or repository automation."
+          sync_label "area: release" "EF4444" "Changes to generated release artifacts."
+          sync_label "status: needs triage" "D97706" "Needs review before work starts."
+          sync_label "status: inactive" "A3A3A3" "No recent activity."
+          sync_label "status: closed inactive" "525252" "Closed after inactivity."
+
+      - name: Apply Issue Labels
+        env:
+          GH_TOKEN: ${{ steps.scout-token.outputs.token }}
+          REPO: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          text="$(jq -r '[.issue.title, .issue.body // ""] | join(" ") | ascii_downcase' "$GITHUB_EVENT_PATH")"
+
+          add_label() {
+            gh issue edit "$ISSUE_NUMBER" --repo "$REPO" --add-label "$1"
+          }
+
+          add_label "status: needs triage"
+
+          case "$text" in
+            *scan*|*scanner*|*heavy*|*cache*|*trash*|*confirm*|*safe*)
+              add_label "area: scanner"
+              ;;
+          esac
+
+          case "$text" in
+            *app*|*window*|*button*|*sidebar*|*layout*|*selection*|*swift*)
+              add_label "area: app"
+              ;;
+          esac
+
+          case "$text" in
+            *dmg*|*install*|*package*|*sign*|*icon*|*release*)
+              add_label "area: packaging"
+              ;;
+          esac
+
+          case "$text" in
+            *webpage*|*website*|*page*|*download*|*github\ pages*)
+              add_label "area: website"
+              ;;
+          esac
+
+          case "$text" in
+            *asset*|*icon*|*image*|*brand*)
+              add_label "area: assets"
+              ;;
+          esac
+
+          case "$text" in
+            *readme*|*docs*|*documentation*)
+              add_label "area: docs"
+              ;;
+          esac
+
+          case "$text" in
+            *workflow*|*action*|*ci*|*label*)
+              add_label "area: ci"
+              ;;
+          esac

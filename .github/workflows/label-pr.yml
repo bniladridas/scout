@@ -1,0 +1,64 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+---
+name: Label PR
+
+on:
+  pull_request_target:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  label:
+    name: Label Changed Areas
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Create Scout App Token
+        id: scout-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.SCOUT_APP_ID }}
+          private-key: ${{ secrets.SCOUT_APP_PRIVATE_KEY }}
+
+      - name: Sync Labels
+        env:
+          GH_TOKEN: ${{ steps.scout-token.outputs.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          sync_label() {
+            name="$1"
+            color="$2"
+            description="$3"
+
+            if gh label view "$name" --repo "$REPO" >/dev/null 2>&1; then
+              gh label edit "$name" --repo "$REPO" --color "$color" --description "$description"
+            else
+              gh label create "$name" --repo "$REPO" --color "$color" --description "$description"
+            fi
+          }
+
+          sync_label "area: app" "16C28C" "Changes to the Scout macOS app shell or Swift package."
+          sync_label "area: scanner" "0EA5E9" "Changes to heavy-item scanning, classification, or cleanup logic."
+          sync_label "area: packaging" "8B5CF6" "Changes to app bundling, icon generation, signing, or DMG packaging."
+          sync_label "area: website" "22C55E" "Changes to the static install webpage."
+          sync_label "area: assets" "F59E0B" "Changes to icons, images, or visual assets."
+          sync_label "area: docs" "64748B" "Changes to README or product-facing documentation."
+          sync_label "area: ci" "334155" "Changes to GitHub Actions or repository automation."
+          sync_label "area: release" "EF4444" "Changes to generated release artifacts."
+          sync_label "status: inactive" "A3A3A3" "No recent activity."
+          sync_label "status: closed inactive" "525252" "Closed after inactivity."
+
+      - name: Apply Labels
+        uses: actions/labeler@v5
+        with:
+          repo-token: ${{ steps.scout-token.outputs.token }}
+          configuration-path: .github/labeler.yml
+          sync-labels: true

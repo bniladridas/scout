@@ -1,0 +1,47 @@
+"area: app":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "Sources/**"
+          - "Package.swift"
+          - "Support/Info.plist"
+
+"area: scanner":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "Sources/DiskScanner.swift"
+          - "Sources/CandidateClassifier.swift"
+          - "Sources/CleanupCandidate.swift"
+
+"area: packaging":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "scripts/package-app.sh"
+          - "scripts/package-dmg.sh"
+          - "scripts/make-icns.swift"
+          - "Support/AppIcon.iconset/**"
+          - "Support/Resources/**"
+
+"area: website":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "index.html"
+
+"area: assets":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "Assets/**"
+
+"area: docs":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "README.md"
+
+"area: ci":
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/**"
+
+"area: release":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "Scout.dmg"
